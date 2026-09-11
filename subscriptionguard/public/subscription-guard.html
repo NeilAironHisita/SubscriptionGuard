@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SubscriptionGuard — Financial Defense Core</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            obsidian: '#0B0F17',
+            surface: '#1E2640',
+            borderDark: '#2D3748',
+            emeraldMain: '#10B981',
+            emeraldGlow: '#4EDEA3',
+            urgentRed: '#EF4444'
+          },
+          fontFamily: {
+            sans: ['"Hanken Grotesk"', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace']
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      background-color: #0B0F17;
+      color: #DFE2EE;
+      font-family: 'Hanken Grotesk', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .card-glow:hover {
+      box-shadow: 0 0 20px -5px rgba(16, 185, 129, 0.15);
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-obsidian flex flex-col justify-between antialiased selection:bg-emeraldMain selection:text-black">
+
+  <!-- ==================== FIXED TOP NAVIGATION ==================== -->
+  <header class="fixed top-0 left-0 right-0 h-16 bg-obsidian/90 backdrop-blur-xl border-b border-borderDark z-50 px-4 md:px-6">
+    <div class="max-w-md mx-auto h-full flex items-center justify-between">
+      <!-- Brand Logo & Pill -->
+      <div class="flex items-center gap-2 cursor-pointer" onclick="showView('view-dashboard')">
+        <div class="w-8 h-8 rounded-xl bg-emeraldMain/15 border border-emeraldMain/40 flex items-center justify-center text-emeraldMain shadow">
+          <svg class="w-4 h-4 fill-emeraldMain/20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" fill="none">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+        <div>
+          <span class="font-extrabold text-sm tracking-tight text-white block leading-tight">
+            Subscription<span class="text-emeraldMain">Guard</span>
+          </span>
+          <span class="text-[9px] uppercase tracking-widest text-emeraldMain font-mono block">DEFENSE CORE</span>
+        </div>
+      </div>
+
+      <!-- Live Vault Pill & Currency Switcher -->
+      <div class="flex items-center gap-2">
+        <div class="hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-surface border border-borderDark text-[10px] text-emeraldMain font-mono">
+          <span class="w-1.5 h-1.5 rounded-full bg-emeraldMain animate-ping"></span>
+          <span>Live Vault</span>
+        </div>
+
+        <!-- Currency Toggle -->
+        <div class="flex bg-surface p-0.5 rounded-xl border border-borderDark text-xs font-mono font-bold">
+          <button id="btn-curr-php" onclick="setCurrency('PHP')" class="px-2 py-1 rounded-lg bg-emeraldMain text-black shadow transition-all">₱ PHP</button>
+          <button id="btn-curr-usd" onclick="setCurrency('USD')" class="px-2 py-1 rounded-lg text-gray-400 hover:text-white transition-all">$ USD</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== MAIN MOBILE-FIRST CONTAINER ==================== -->
+  <main class="w-full max-w-md mx-auto pt-20 pb-24 px-4 flex-1 flex flex-col gap-5">
+
+    <!-- ==================== 1. DASHBOARD VIEW ==================== -->
+    <div id="view-dashboard" class="space-y-5">
+      <!-- Bank Connection Header Pill -->
+      <div class="flex items-center justify-between bg-surface/70 border border-borderDark rounded-2xl px-4 py-2.5">
+        <div class="flex items-center gap-2.5">
+          <div class="w-7 h-7 rounded-xl bg-emeraldMain/15 text-emeraldMain flex items-center justify-center">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 21h18M3 10h18M5 10v11M19 10v11M9 10v11M15 10v11M12 2L2 7h20L12 2z"/>
+            </svg>
+          </div>
+          <div>
+            <span class="text-xs font-bold text-white block">Chase Premier Checking (•••• 9012)</span>
+            <span class="text-[10px] text-emeraldMain font-mono flex items-center gap-1">
+              <span class="w-1 h-1 rounded-full bg-emeraldMain"></span>
+              Synchronized via Open Banking
+            </span>
+          </div>
+        </div>
+        <button onclick="promptBudgetChange()" class="text-[11px] font-bold text-gray-400 hover:text-white border border-borderDark hover:border-emeraldMain px-2 py-1 rounded-lg transition-all">
+          Budget
+        </button>
+      </div>
+
+      <!-- Hero Burn Rate Card -->
+      <div class="bg-surface border border-borderDark rounded-3xl p-6 relative overflow-hidden shadow-2xl">
+        <div class="absolute -top-20 -right-20 w-48 h-48 bg-emeraldMain/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <span class="p-1 rounded-lg bg-obsidian text-emeraldMain">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3z"/>
+              </svg>
+            </span>
+            <span id="burn-rate-label" class="text-[11px] font-bold uppercase tracking-wider text-gray-400">Live Monthly Burn Rate</span>
+          </div>
+
+          <div class="flex bg-obsidian p-1 rounded-xl border border-borderDark text-[11px] font-bold">
+            <button id="toggle-monthly" onclick="setBurnCycle('monthly')" class="px-2.5 py-0.5 rounded-lg bg-emeraldMain text-black shadow">Mo</button>
+            <button id="toggle-annual" onclick="setBurnCycle('annual')" class="px-2.5 py-0.5 rounded-lg text-gray-400 hover:text-white">Yr</button>
+          </div>
+        </div>
+
+        <div class="my-2 flex items-baseline gap-1">
+          <span id="burn-symbol" class="text-3xl font-black text-emeraldMain">₱</span>
+          <span id="burn-total" class="text-5xl font-black font-mono tracking-tight text-white">214.50</span>
+          <span id="burn-interval" class="text-xs font-semibold text-gray-400">/month</span>
+        </div>
+
+        <!-- Budget Utilization Bar -->
+        <div class="mt-4 space-y-1.5">
+          <div class="flex justify-between text-[11px] text-gray-400 font-mono">
+            <span>Budget Cap Utilization</span>
+            <span id="budget-ratio-text" class="text-emeraldMain font-bold">42.9% of ₱500.00</span>
+          </div>
+          <div class="w-full bg-obsidian h-2 rounded-full overflow-hidden border border-borderDark/60">
+            <div id="budget-progress-bar" class="bg-emeraldMain h-full rounded-full transition-all duration-500" style="width: 42.9%;"></div>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-borderDark/60 flex items-center justify-between text-xs">
+          <span class="px-2.5 py-0.5 rounded-full bg-obsidian border border-borderDark text-gray-400 font-medium">
+            <strong id="active-streams-count" class="text-white font-mono">6</strong> active streams
+          </span>
+          <span id="saved-pill" class="px-2.5 py-0.5 rounded-full bg-emeraldMain/15 border border-emeraldMain/30 text-emeraldMain text-[11px] font-semibold">
+            Saved ₱0.00/mo
+          </span>
+        </div>
+      </div>
+
+      <!-- 72-Hour Renewal Urgency Alert Banner -->
+      <div id="urgency-banner" class="bg-urgentRed text-white rounded-2xl p-4 shadow-xl border border-urgentRed/60 flex items-center justify-between transition-all">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-black/20 flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"/>
+            </svg>
+          </div>
+          <div>
+            <div class="flex items-center gap-1.5">
+              <span class="font-extrabold text-xs tracking-tight">Auto-Charge Within 48 Hours</span>
+              <span class="text-[9px] uppercase font-mono font-bold bg-white/20 px-1.5 py-0.2 rounded">Urgent</span>
+            </div>
+            <p id="urgency-banner-desc" class="text-[11px] text-white/90 mt-0.5 leading-snug">
+              Netflix (<span class="font-mono">₱22.99</span>) renews in 2 days. Review before card charge.
+            </p>
+          </div>
+        </div>
+        <button onclick="showView('view-analytics-detail')" class="px-3 py-1.5 bg-white text-black text-xs font-black rounded-xl hover:bg-gray-100 flex-shrink-0 shadow active:scale-95 transition-all">
+          Inspect
+        </button>
+      </div>
+
+      <!-- Horizontal Upcoming Renewal Stream -->
+      <section class="space-y-2.5">
+        <div class="flex items-center justify-between">
+          <h3 class="font-black text-sm text-white flex items-center gap-1.5">
+            <span>Upcoming Renewal Queue</span>
+            <span class="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-md bg-surface text-emeraldMain border border-borderDark">Live Stream</span>
+          </h3>
+          <span class="text-[11px] text-gray-400">Horizontal scroll →</span>
+        </div>
+
+        <div id="upcoming-stream-container" class="flex overflow-x-auto gap-3 pb-2 -mx-4 px-4 no-scrollbar snap-x">
+          <!-- Dynamically populated via renderDashboard() -->
+        </div>
+      </section>
+
+      <!-- Category Spend Bento Grid -->
+      <section class="space-y-2.5">
+        <h3 class="font-black text-sm text-white flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-emeraldMain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21.21 15.89A10 10 0 1 1 8 2.83M22 12A10 10 0 0 0 12 2v10z"/>
+          </svg>
+          <span>Category Spend Distribution</span>
+        </h3>
+        <div id="category-bento-grid" class="grid grid-cols-2 gap-2.5">
+          <!-- Dynamically populated via renderDashboard() -->
+        </div>
+      </section>
+
+      <!-- Dark Pattern Callout Banner -->
+      <div class="bg-gradient-to-r from-surface to-obsidian border border-borderDark rounded-2xl p-4 flex items-center justify-between">
+        <div>
+          <h4 class="font-bold text-xs text-white">Trapped in a retention maze?</h4>
+          <p class="text-[11px] text-gray-400 mt-0.5">Use our FTC Click-to-Cancel legal script to force cancellation.</p>
+        </div>
+        <button onclick="showView('view-defense')" class="px-3 py-2 rounded-xl bg-emeraldMain text-black text-xs font-black shadow hover:bg-emeraldGlow transition-all flex-shrink-0">
+          Defense Guide
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================== 2. FREE TRIAL DEFENSE VIEW ==================== -->
+    <div id="view-trials" class="hidden space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-xl font-black text-white tracking-tight flex items-center gap-2">
+            <svg class="w-5 h-5 text-emeraldMain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <span>Free Trial Defense Engine</span>
+          </h2>
+          <p class="text-xs text-gray-400 mt-0.5">Automated countdown interceptor & auto-charge defense</p>
+        </div>
+        <span class="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-surface border border-borderDark text-emeraldMain">
+          3 Monitored
+        </span>
+      </div>
+
+      <!-- Policy Info -->
+      <div class="bg-surface border border-borderDark rounded-2xl p-3.5 flex items-start gap-2.5 text-xs text-gray-300">
+        <svg class="w-4 h-4 text-emeraldMain mt-0.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        <span>All trials trigger a formal push notification 48 hours prior to card debit to guarantee sufficient cancellation lead time.</span>
+      </div>
+
+      <!-- Trial Cards Container -->
+      <div id="trial-cards-container" class="space-y-3">
+        <!-- Dynamically rendered -->
+      </div>
+
+      <button onclick="addNewTrialPrompt()" class="w-full py-3.5 rounded-2xl border border-dashed border-borderDark hover:border-emeraldMain text-xs font-bold text-gray-400 hover:text-white flex items-center justify-center gap-2 transition-all">
+        <svg class="w-4 h-4 text-emeraldMain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+        <span>+ Add New Trial Intercept</span>
+      </button>
+    </div>
+
+    <!-- ==================== 3. ANALYTICS & 3-STEP CANCELLATION VIEW ==================== -->
+    <div id="view-analytics-detail" class="hidden space-y-5">
+      <!-- Back Link -->
+      <div class="flex items-center justify-between">
+        <button onclick="showView('view-dashboard')" class="text-xs font-bold text-gray-400 hover:text-white flex items-center gap-1 transition-colors">
+          ← Return to Dashboard
+        </button>
+        <span id="detail-status-badge" class="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-emeraldMain/15 border border-emeraldMain/30 text-emeraldMain">
+          Active Subscription
+        </span>
+      </div>
+
+      <!-- Service Card -->
+      <div class="bg-surface border border-borderDark rounded-3xl p-5 shadow-xl flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-2xl bg-obsidian border border-borderDark flex items-center justify-center font-black text-xl text-white">
+            A
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-base font-black text-white">Adobe Creative Cloud</h2>
+              <span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-urgentRed/20 text-urgentRed border border-urgentRed/40 font-mono">-78% Use</span>
+            </div>
+            <p class="text-xs text-gray-400 mt-0.5">Creative Suite • Billed Monthly</p>
+          </div>
+        </div>
+        <div class="text-right">
+          <div class="flex items-baseline gap-0.5 justify-end">
+            <span class="text-xl font-black font-mono text-white" id="detail-cost-text">₱54.99</span>
+            <span class="text-[10px] text-gray-400">/mo</span>
+          </div>
+          <span class="text-[10px] text-gray-400 font-mono block">₱659.88/yr</span>
+        </div>
+      </div>
+
+      <!-- 4-Week Telemetry Bar Chart -->
+      <div class="bg-surface border border-borderDark rounded-3xl p-5 shadow-xl space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="font-bold text-xs text-white flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-urgentRed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/></svg>
+            <span>4-Week Application Usage Activity</span>
+          </h3>
+          <span class="text-[10px] font-mono font-bold text-urgentRed bg-urgentRed/15 px-2 py-0.5 rounded border border-urgentRed/30">
+            Critical Drop: -78%
+          </span>
+        </div>
+        <p class="text-[11px] text-gray-400 leading-relaxed">
+          Active hours on Adobe CC dropped from 12 hrs/week to 45 mins/week over the past month.
+        </p>
+
+        <!-- Vertical CSS Bar Chart -->
+        <div class="h-36 pt-4 flex items-end justify-between gap-3 border-b border-borderDark pb-2">
+          <div class="flex-1 flex flex-col items-center gap-1 h-full justify-end">
+            <span class="text-[10px] font-mono text-white">12.0h</span>
+            <div class="w-full bg-obsidian rounded-t-lg h-24 flex items-end">
+              <div class="w-full bg-emeraldMain rounded-t-lg transition-all" style="height: 100%;"></div>
+            </div>
+            <span class="text-[10px] font-bold text-gray-400">W1</span>
+          </div>
+          <div class="flex-1 flex flex-col items-center gap-1 h-full justify-end">
+            <span class="text-[10px] font-mono text-white">6.0h</span>
+            <div class="w-full bg-obsidian rounded-t-lg h-24 flex items-end">
+              <div class="w-full bg-emeraldMain rounded-t-lg transition-all" style="height: 50%;"></div>
+            </div>
+            <span class="text-[10px] font-bold text-gray-400">W2</span>
+          </div>
+          <div class="flex-1 flex flex-col items-center gap-1 h-full justify-end">
+            <span class="text-[10px] font-mono text-urgentRed">1.5h</span>
+            <div class="w-full bg-obsidian rounded-t-lg h-24 flex items-end">
+              <div class="w-full bg-urgentRed rounded-t-lg transition-all" style="height: 12.5%;"></div>
+            </div>
+            <span class="text-[10px] font-bold text-gray-400">W3</span>
+          </div>
+          <div class="flex-1 flex flex-col items-center gap-1 h-full justify-end">
+            <span class="text-[10px] font-mono text-urgentRed font-bold">0.75h</span>
+            <div class="w-full bg-obsidian rounded-t-lg h-24 flex items-end">
+              <div class="w-full bg-urgentRed rounded-t-lg transition-all animate-pulse" style="height: 6.25%;"></div>
+            </div>
+            <span class="text-[10px] font-bold text-urgentRed">W4</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Value Score Engine -->
+      <div class="grid grid-cols-2 gap-2.5">
+        <div class="bg-surface border border-borderDark rounded-2xl p-3.5">
+          <span class="text-[10px] uppercase font-bold text-gray-400 block mb-1">Cost Per Active Hour</span>
+          <span class="text-xl font-black font-mono text-urgentRed" id="cost-per-hour-text">₱13.75<span class="text-xs text-gray-400 font-sans">/hr</span></span>
+          <span class="text-[10px] text-gray-400 block mt-1">Target: &lt; ₱3.50/hr</span>
+        </div>
+        <div class="bg-surface border border-borderDark rounded-2xl p-3.5">
+          <span class="text-[10px] uppercase font-bold text-gray-400 block mb-1">Value Score</span>
+          <span class="text-xl font-black font-mono text-urgentRed">24 <span class="text-xs text-gray-400 font-sans">/ 100</span></span>
+          <span class="text-[10px] text-urgentRed font-bold block mt-1">Severe Underuse</span>
+        </div>
+      </div>
+
+      <!-- 3-Step Guided Cancellation Stepper -->
+      <div class="bg-gradient-to-b from-surface to-obsidian border border-urgentRed/50 rounded-3xl p-5 shadow-2xl space-y-4">
+        <div class="flex items-center justify-between border-b border-borderDark pb-3">
+          <h3 class="font-black text-sm text-white flex items-center gap-2">
+            <svg class="w-4 h-4 text-urgentRed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+            <span>3-Step Guided Cancellation Defense</span>
+          </h3>
+          <span class="text-[10px] font-mono font-bold text-emeraldMain" id="stepper-step-indicator">Step 1 of 3</span>
+        </div>
+
+        <!-- Step 1: Legal Notification & Identification -->
+        <div id="cancel-step-1" class="space-y-3">
+          <div class="bg-obsidian p-3 rounded-xl border border-borderDark text-xs text-gray-300 leading-relaxed">
+            Under <strong>FTC 16 CFR Part 425</strong>, merchants must provide a simple "click-to-cancel" mechanism that takes no longer than enrollment.
+          </div>
+          <p class="text-xs text-gray-400">Target: <strong>Adobe Creative Cloud</strong>. Confirm statutory revocation:</p>
+          <button onclick="advanceCancelStep(2)" class="w-full py-3 bg-emeraldMain text-black font-black text-xs rounded-xl shadow hover:bg-emeraldGlow transition-all">
+            Confirm & Proceed to Survey Shield →
+          </button>
+        </div>
+
+        <!-- Step 2: Survey Defense Countermeasure -->
+        <div id="cancel-step-2" class="hidden space-y-3">
+          <div class="bg-urgentRed/15 border border-urgentRed/30 rounded-xl p-2.5 text-[11px] text-urgentRed font-semibold">
+            Defense Strategy: Selecting "Too Expensive" automatically skips 68% of downstream retention discount popups.
+          </div>
+          <div class="space-y-2 text-xs">
+            <label class="flex items-center gap-2 bg-obsidian p-2.5 rounded-xl border border-emeraldMain cursor-pointer">
+              <input type="radio" name="cancel-reason" checked class="accent-emeraldMain">
+              <span class="text-white font-bold">Cost exceeds value / Too Expensive (Auto-Skip)</span>
+            </label>
+            <label class="flex items-center gap-2 bg-obsidian p-2.5 rounded-xl border border-borderDark cursor-pointer text-gray-400">
+              <input type="radio" name="cancel-reason" class="accent-emeraldMain">
+              <span>Switched to alternative tool</span>
+            </label>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="advanceCancelStep(1)" class="w-1/3 py-2.5 rounded-xl border border-borderDark text-xs text-gray-400 font-bold">Back</button>
+            <button onclick="advanceCancelStep(3)" class="w-2/3 py-2.5 bg-urgentRed text-white font-black text-xs rounded-xl hover:bg-red-600 shadow transition-all">
+              Execute Revocation →
+            </button>
+          </div>
+        </div>
+
+        <!-- Step 3: Execution & Audit Record -->
+        <div id="cancel-step-3" class="hidden space-y-3 text-center py-2">
+          <div class="w-12 h-12 rounded-full bg-emeraldMain/20 text-emeraldMain flex items-center justify-center mx-auto">
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <h4 class="font-black text-white text-sm">Subscription Successfully Terminated</h4>
+          <p class="text-xs text-gray-400 leading-snug">
+            Recurring debit revoked under Regulation E. Saved <strong id="step3-saved-text" class="text-emeraldMain font-mono">₱54.99/mo (₱659.88/yr)</strong>. Logged in the permanent Audit Ledger.
+          </p>
+          <button onclick="finalizeCancellation('sub_03')" class="w-full py-3 bg-emeraldMain text-black font-black text-xs rounded-xl shadow hover:bg-emeraldGlow">
+            Return to Live Dashboard
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== 4. DARK PATTERN DEFENSE CORE VIEW ==================== -->
+    <div id="view-defense" class="hidden space-y-5">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-urgentRed/20 border border-urgentRed/40 flex items-center justify-center text-urgentRed">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+        <div>
+          <h2 class="text-lg font-black text-white tracking-tight">Dark Pattern Defense Core</h2>
+          <p class="text-xs text-gray-400">Deceptive retention bypass & statutory revocation script</p>
+        </div>
+      </div>
+
+      <!-- Legal Revocation Letter Box -->
+      <div class="bg-surface border border-borderDark rounded-3xl p-5 shadow-2xl space-y-3">
+        <div class="flex items-center justify-between border-b border-borderDark pb-2.5">
+          <span class="text-xs font-bold text-white flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-emeraldMain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span>FTC Click-to-Cancel Statutory Notice</span>
+          </span>
+          <button id="btn-copy-script" onclick="copyLegalScript()" class="px-3 py-1.5 rounded-xl bg-emeraldMain text-black text-xs font-black shadow hover:bg-emeraldGlow flex items-center gap-1 transition-all">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <span id="copy-btn-label">1-Tap Copy Script</span>
+          </button>
+        </div>
+
+        <p class="text-[11px] text-gray-400">
+          Paste this notice directly into support chats, emails, or cancellation forms to legally bypass phone loops:
+        </p>
+
+        <div id="legal-script-text" class="bg-obsidian p-4 rounded-2xl border border-borderDark font-mono text-[11px] text-gray-300 leading-relaxed max-h-52 overflow-y-auto whitespace-pre-wrap">To Customer Support & Billing Department:
+
+Under the Federal Trade Commission's Click-to-Cancel Rule (16 CFR Part 425) and Regulation E (12 CFR § 1005.10) governing preauthorized electronic fund transfers, I hereby formally revoke payment authorization for this recurring subscription effective immediately.
+
+As mandated by federal standards, cancellation mechanisms must be as simple and frictionless as enrollment. I do not consent to retention surveys, downsell offers, phone transfer procedures, or pause tiers.
+
+Please process this permanent cancellation immediately and provide written confirmation along with a reference number. Any subsequent debit to my linked card or account will be disputed as an unauthorized transaction.</div>
+      </div>
+
+      <!-- Tactical Countermeasure Cards -->
+      <div class="space-y-3">
+        <h3 class="font-black text-xs uppercase tracking-wider text-gray-400">Tactical Retention Defenses</h3>
+
+        <div class="bg-surface border border-borderDark rounded-2xl p-4 space-y-2">
+          <div class="flex items-center gap-2 text-urgentRed font-bold text-xs">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            <span>The Forced Phone Call Labyrinth</span>
+          </div>
+          <p class="text-xs text-gray-400 leading-relaxed">
+            <strong>Merchant Tactic:</strong> Disables online cancellation buttons and forces 45-minute phone queues.<br/>
+            <strong>Countermeasure:</strong> Submit our written Regulation E revocation via ticket. If debited again, banks must reverse the unauthorized ACH charge.
+          </p>
+        </div>
+
+        <div class="bg-surface border border-borderDark rounded-2xl p-4 space-y-2">
+          <div class="flex items-center gap-2 text-urgentRed font-bold text-xs">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/></svg>
+            <span>The Guilt-Trip Multi-Step Survey Maze</span>
+          </div>
+          <p class="text-xs text-gray-400 leading-relaxed">
+            <strong>Merchant Tactic:</strong> Traps users in 5+ survey screens claiming "You'll lose all data."<br/>
+            <strong>Countermeasure:</strong> Select "Too Expensive". This automatically branches straight to confirmation, bypassing discount popups.
+          </p>
+        </div>
+
+        <div class="bg-surface border border-borderDark rounded-2xl p-4 space-y-2">
+          <div class="flex items-center gap-2 text-urgentRed font-bold text-xs">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span>The Hidden Recurring Conversion Trap</span>
+          </div>
+          <p class="text-xs text-gray-400 leading-relaxed">
+            <strong>Merchant Tactic:</strong> $1 trial silently flips into an annual recurring plan.<br/>
+            <strong>Countermeasure:</strong> Use SubscriptionGuard's 48-hour push interceptor and cancel immediately upon trial signup.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== 5. SQL QUERY INSPECTOR VIEW ==================== -->
+    <div id="view-sql" class="hidden space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-black text-white tracking-tight flex items-center gap-2">
+            <svg class="w-5 h-5 text-emeraldMain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+            <span>Relational SQL Inspector</span>
+          </h2>
+          <p class="text-xs text-gray-400">Sandboxed in-memory query terminal & immutable audit trail</p>
+        </div>
+        <span class="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-emeraldMain/15 text-emeraldMain border border-emeraldMain/30">
+          ACID Emulation
+        </span>
+      </div>
+
+      <!-- SQL Terminal Box -->
+      <div class="bg-surface border border-borderDark rounded-3xl p-4 shadow-2xl space-y-3">
+        <div class="flex gap-2">
+          <input id="sql-input" type="text" value="SELECT * FROM subscriptions WHERE status = 'Active'" class="flex-1 bg-obsidian border border-borderDark rounded-xl px-3 py-2 text-xs font-mono text-emeraldMain focus:outline-none focus:border-emeraldMain">
+          <button onclick="executeSQLQuery()" class="px-4 py-2 bg-emeraldMain text-black font-black text-xs rounded-xl shadow hover:bg-emeraldGlow active:scale-95 transition-all">
+            Run
+          </button>
+        </div>
+
+        <!-- Filter Chips -->
+        <div class="flex flex-wrap gap-1.5">
+          <button onclick="setSQL('SELECT * FROM subscriptions WHERE status = \'Active\'')" class="px-2 py-1 rounded-lg bg-obsidian border border-borderDark text-[10px] font-mono text-gray-400 hover:text-white">Active Subs</button>
+          <button onclick="setSQL('SELECT * FROM free_trials WHERE daysLeft <= 2')" class="px-2 py-1 rounded-lg bg-obsidian border border-borderDark text-[10px] font-mono text-gray-400 hover:text-white">Expiring Trials</button>
+          <button onclick="setSQL('SELECT * FROM audit_logs ORDER BY time DESC')" class="px-2 py-1 rounded-lg bg-obsidian border border-borderDark text-[10px] font-mono text-gray-400 hover:text-white">Audit Ledger</button>
+        </div>
+      </div>
+
+      <!-- Results Table View -->
+      <div class="bg-surface border border-borderDark rounded-3xl p-4 shadow-2xl space-y-3">
+        <div class="flex items-center justify-between border-b border-borderDark pb-2">
+          <span class="text-xs font-bold text-white">Query Execution Output</span>
+          <span id="sql-rows-count" class="text-[10px] font-mono text-emeraldMain">6 rows returned</span>
+        </div>
+        
+        <div class="overflow-x-auto max-h-64 no-scrollbar">
+          <table class="w-full text-left text-[11px] font-mono" id="sql-result-table">
+            <!-- Dynamically populated -->
+          </table>
+        </div>
+
+        <div class="pt-2 border-t border-borderDark flex justify-between gap-2">
+          <button onclick="exportJSONLedger()" class="px-3 py-2 rounded-xl border border-borderDark text-xs font-bold text-gray-300 hover:text-white hover:border-emeraldMain transition-all">
+            📥 Export JSON Ledger
+          </button>
+          <button onclick="resetMockState()" class="px-3 py-2 rounded-xl bg-obsidian border border-borderDark text-xs font-bold text-urgentRed hover:bg-urgentRed/10 transition-all">
+            Reset State
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ==================== FIXED 4-TAB BOTTOM NAVIGATION BAR ==================== -->
+  <nav class="fixed bottom-0 left-0 right-0 h-16 bg-obsidian/95 backdrop-blur-xl border-t border-borderDark z-50 px-6">
+    <div class="max-w-md mx-auto h-full flex justify-around items-center">
+      
+      <!-- Tab 1: Dashboard -->
+      <button id="nav-btn-dashboard" onclick="showView('view-dashboard')" class="flex flex-col items-center justify-center py-1 px-3 text-emeraldMain font-bold transition-all">
+        <svg class="w-5 h-5 mb-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <span class="text-[10px] tracking-tight">Dashboard</span>
+      </button>
+
+      <!-- Tab 2: Free Trials -->
+      <button id="nav-btn-trials" onclick="showView('view-trials')" class="flex flex-col items-center justify-center py-1 px-3 text-gray-400 hover:text-white font-medium relative transition-all">
+        <span class="absolute top-1 right-3 w-2 h-2 rounded-full bg-urgentRed ring-2 ring-obsidian"></span>
+        <svg class="w-5 h-5 mb-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span class="text-[10px] tracking-tight">Trials</span>
+      </button>
+
+      <!-- Tab 3: Defense -->
+      <button id="nav-btn-defense" onclick="showView('view-defense')" class="flex flex-col items-center justify-center py-1 px-3 text-gray-400 hover:text-white font-medium transition-all">
+        <svg class="w-5 h-5 mb-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span class="text-[10px] tracking-tight">Defense</span>
+      </button>
+
+      <!-- Tab 4: SQL Vault -->
+      <button id="nav-btn-sql" onclick="showView('view-sql')" class="flex flex-col items-center justify-center py-1 px-3 text-gray-400 hover:text-white font-medium transition-all">
+        <svg class="w-5 h-5 mb-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+        <span class="text-[10px] tracking-tight">SQL Vault</span>
+      </button>
+
+    </div>
+  </nav>
+
+  <!-- ==================== VANILLA JAVASCRIPT LOGIC CORE ==================== -->
+  <script>
+    // ---------- 1. RELATIONAL IN-MEMORY REACTIVE STATE ----------
+    const INITIAL_STATE = {
+      currency: 'PHP',
+      burnCycle: 'monthly',
+      budgetCap: 500.0,
+      subscriptions: [
+        { id: 'sub_01', name: 'Netflix', category: 'Entertainment', cost: 22.99, renewDays: 2, status: 'Active' },
+        { id: 'sub_02', name: 'Spotify', category: 'Entertainment', cost: 14.99, renewDays: 14, status: 'Active' },
+        { id: 'sub_03', name: 'Adobe CC', category: 'Creative', cost: 54.99, renewDays: 6, status: 'Active', usageDrop: -78, costPerHour: 13.75 },
+        { id: 'sub_04', name: 'ChatGPT Plus', category: 'Productivity', cost: 20.00, renewDays: 22, status: 'Active' },
+        { id: 'sub_05', name: 'Equinox Gym', category: 'Health', cost: 85.00, renewDays: 18, status: 'Active' },
+        { id: 'sub_06', name: 'iCloud Storage', category: 'Utilities', cost: 16.53, renewDays: 8, status: 'Active' }
+      ],
+      freeTrials: [
+        { id: 'tr_1', name: 'Disney+', tier: 'Ad-Free Premium', costAfter: 13.99, daysLeft: 2, alert48h: true, status: 'Active' },
+        { id: 'tr_2', name: 'HelloFresh', tier: 'Classic Box', costAfter: 48.50, daysLeft: 5, alert48h: true, status: 'Active' },
+        { id: 'tr_3', name: 'Audible', tier: '30-Day Audio', costAfter: 14.95, daysLeft: 12, alert48h: false, status: 'Active' }
+      ],
+      auditLogs: [
+        { id: 'log_1', time: '10:42 AM', action: 'VAULT_SYNCED', service: 'Chase Open Banking', amount: 0 }
+      ]
+    };
+
+    let AppState = JSON.parse(JSON.stringify(INITIAL_STATE));
+
+    // ---------- 2. CURRENCY FORMATTING UTILITY ----------
+    function formatMoney(amountPHP) {
+      if (AppState.currency === 'PHP') {
+        return { symbol: '₱', value: amountPHP.toFixed(2), display: '₱' + amountPHP.toFixed(2) };
+      }
+      const inUSD = amountPHP / 56.0;
+      return { symbol: '$', value: inUSD.toFixed(2), display: '$' + inUSD.toFixed(2) };
+    }
+
+    function setCurrency(curr) {
+      AppState.currency = curr;
+      document.getElementById('btn-curr-php').className = curr === 'PHP' 
+        ? 'px-2 py-1 rounded-lg bg-emeraldMain text-black shadow transition-all'
+        : 'px-2 py-1 rounded-lg text-gray-400 hover:text-white transition-all';
+      document.getElementById('btn-curr-usd').className = curr === 'USD'
+        ? 'px-2 py-1 rounded-lg bg-emeraldMain text-black shadow transition-all'
+        : 'px-2 py-1 rounded-lg text-gray-400 hover:text-white transition-all';
+      renderAll();
+    }
+
+    function setBurnCycle(cycle) {
+      AppState.burnCycle = cycle;
+      document.getElementById('toggle-monthly').className = cycle === 'monthly'
+        ? 'px-2.5 py-0.5 rounded-lg bg-emeraldMain text-black shadow'
+        : 'px-2.5 py-0.5 rounded-lg text-gray-400 hover:text-white';
+      document.getElementById('toggle-annual').className = cycle === 'annual'
+        ? 'px-2.5 py-0.5 rounded-lg bg-emeraldMain text-black shadow'
+        : 'px-2.5 py-0.5 rounded-lg text-gray-400 hover:text-white';
+      renderDashboard();
+    }
+
+    // ---------- 3. VIEW SWITCHER ----------
+    const VIEW_IDS = ['view-dashboard', 'view-trials', 'view-analytics-detail', 'view-defense', 'view-sql'];
+    function showView(targetId) {
+      VIEW_IDS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+      });
+      const target = document.getElementById(targetId);
+      if (target) target.classList.remove('hidden');
+
+      const navMap = {
+        'view-dashboard': 'nav-btn-dashboard',
+        'view-trials': 'nav-btn-trials',
+        'view-defense': 'nav-btn-defense',
+        'view-sql': 'nav-btn-sql'
+      };
+
+      Object.entries(navMap).forEach(([vId, btnId]) => {
+        const btn = document.getElementById(btnId);
+        if (!btn) return;
+        if (targetId === vId) {
+          btn.className = 'flex flex-col items-center justify-center py-1 px-3 text-emeraldMain font-bold transition-all';
+        } else {
+          btn.className = 'flex flex-col items-center justify-center py-1 px-3 text-gray-400 hover:text-white font-medium transition-all relative';
+        }
+      });
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      renderAll();
+    }
+
+    // ---------- 4. RENDER: DASHBOARD ----------
+    function renderDashboard() {
+      const activeSubs = AppState.subscriptions.filter(s => s.status === 'Active');
+      const monthlySum = activeSubs.reduce((acc, s) => acc + s.cost, 0);
+      const displayTotal = AppState.burnCycle === 'monthly' ? monthlySum : monthlySum * 12;
+
+      const money = formatMoney(displayTotal);
+      document.getElementById('burn-symbol').textContent = money.symbol;
+      document.getElementById('burn-total').textContent = money.value;
+      document.getElementById('burn-interval').textContent = AppState.burnCycle === 'monthly' ? '/month' : '/year';
+      document.getElementById('burn-rate-label').textContent = AppState.burnCycle === 'monthly' ? 'Live Monthly Burn Rate' : 'Projected Annual Run-Rate';
+
+      // Budget Progress
+      const cap = AppState.budgetCap;
+      const pct = Math.min(100, Math.round((monthlySum / cap) * 100));
+      const capFormatted = formatMoney(cap).display;
+      document.getElementById('budget-ratio-text').textContent = `${pct}% of ${capFormatted}`;
+      document.getElementById('budget-progress-bar').style.width = `${pct}%`;
+      document.getElementById('active-streams-count').textContent = activeSubs.length;
+
+      // Saved Pill
+      const cancelledSubs = AppState.subscriptions.filter(s => s.status === 'Cancelled');
+      const savedMonthly = cancelledSubs.reduce((acc, s) => acc + s.cost, 0);
+      document.getElementById('saved-pill').textContent = `Saved ${formatMoney(savedMonthly).display}/mo`;
+
+      // 72-Hour Urgency Banner
+      const urgentSubs = activeSubs.filter(s => s.renewDays <= 3);
+      const banner = document.getElementById('urgency-banner');
+      if (urgentSubs.length > 0) {
+        banner.classList.remove('hidden');
+        const first = urgentSubs[0];
+        document.getElementById('urgency-banner-desc').innerHTML = `${first.name} (<span class="font-mono">${formatMoney(first.cost).display}</span>) auto-charges in ${first.renewDays} days. Review before card charge.`;
+      } else {
+        banner.classList.add('hidden');
+      }
+
+      // Horizontal Renewal Stream
+      const streamContainer = document.getElementById('upcoming-stream-container');
+      streamContainer.innerHTML = '';
+      activeSubs.forEach(sub => {
+        const isUrgent = sub.renewDays <= 3;
+        const card = document.createElement('div');
+        card.className = 'bg-surface border border-borderDark rounded-2xl p-3.5 min-w-[170px] w-[170px] flex-shrink-0 snap-start flex flex-col justify-between h-40 hover:border-emeraldMain/50 transition-all card-glow';
+        card.innerHTML = `
+          <div class="flex items-start justify-between">
+            <div class="w-8 h-8 rounded-xl bg-obsidian border border-borderDark flex items-center justify-center font-bold text-white text-xs">
+              ${sub.name.charAt(0)}
+            </div>
+            <span class="text-[9px] font-bold px-1.5 py-0.5 rounded font-mono ${isUrgent ? 'bg-urgentRed/20 text-urgentRed border border-urgentRed/40' : 'bg-obsidian text-gray-400 border border-borderDark'}">
+              In ${sub.renewDays}d
+            </span>
+          </div>
+          <div>
+            <h4 class="font-bold text-white text-xs truncate">${sub.name}</h4>
+            <div class="flex items-baseline gap-0.5 mt-0.5">
+              <span class="text-sm font-black font-mono text-white">${formatMoney(sub.cost).display}</span>
+              <span class="text-[9px] text-gray-400">/mo</span>
+            </div>
+          </div>
+          <div class="pt-2 border-t border-borderDark/60 flex items-center justify-between">
+            <button onclick="showView('view-analytics-detail')" class="text-[10px] font-bold text-emeraldMain hover:underline">Inspect</button>
+            <button onclick="quickCancel('${sub.id}')" title="Quick Cancel" class="p-1 rounded bg-obsidian hover:bg-urgentRed/20 text-gray-400 hover:text-urgentRed transition-all">
+              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        `;
+        streamContainer.appendChild(card);
+      });
+
+      // Category Bento Grid
+      const bentoContainer = document.getElementById('category-bento-grid');
+      bentoContainer.innerHTML = '';
+      const categories = ['Entertainment', 'Creative', 'Health', 'Productivity', 'Utilities'];
+      categories.forEach(cat => {
+        const catSubs = activeSubs.filter(s => s.category === cat);
+        const catSum = catSubs.reduce((acc, s) => acc + s.cost, 0);
+        const catPct = monthlySum > 0 ? Math.round((catSum / monthlySum) * 100) : 0;
+
+        const bento = document.createElement('div');
+        bento.className = 'bg-surface border border-borderDark rounded-2xl p-3 flex flex-col justify-between';
+        bento.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div>
+              <h5 class="text-xs font-bold text-white">${cat}</h5>
+              <span class="text-[10px] text-gray-400">${catSubs.length} stream${catSubs.length !== 1 ? 's' : ''}</span>
+            </div>
+            <div class="text-right">
+              <span class="text-xs font-bold font-mono text-white block">${formatMoney(catSum).display}</span>
+              <span class="text-[10px] font-mono text-emeraldMain font-bold">${catPct}%</span>
+            </div>
+          </div>
+          <div class="w-full bg-obsidian h-1.5 rounded-full mt-2 overflow-hidden border border-borderDark/40">
+            <div class="bg-emeraldMain h-full rounded-full transition-all" style="width: ${Math.max(4, catPct)}%;"></div>
+          </div>
+        `;
+        bentoContainer.appendChild(bento);
+      });
+    }
+
+    // ---------- 5. RENDER: FREE TRIALS (WITH SVG CIRCULAR PROGRESS) ----------
+    function renderTrials() {
+      const container = document.getElementById('trial-cards-container');
+      container.innerHTML = '';
+
+      AppState.freeTrials.forEach(tr => {
+        const isUrgent = tr.daysLeft <= 2;
+        const isCancelled = tr.status === 'Cancelled';
+        const color = isUrgent ? '#EF4444' : '#10B981';
+
+        const radius = 26;
+        const circum = 2 * Math.PI * radius;
+        const pct = Math.min(100, Math.max(5, (tr.daysLeft / 14) * 100));
+        const offset = circum - (pct / 100) * circum;
+
+        const card = document.createElement('div');
+        card.className = `bg-surface border ${isUrgent ? 'border-urgentRed/50' : 'border-borderDark'} rounded-3xl p-4 shadow-lg space-y-3`;
+        card.innerHTML = `
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="flex items-center gap-1.5">
+                <h3 class="font-black text-sm text-white">${tr.name}</h3>
+                <span class="text-[9px] font-bold px-1.5 py-0.2 rounded font-mono ${isUrgent ? 'bg-urgentRed/20 text-urgentRed border border-urgentRed/40' : 'bg-emeraldMain/15 text-emeraldMain'}">
+                  ${isCancelled ? 'CANCELLED' : (isUrgent ? 'URGENT EXPIRY' : 'ACTIVE TRIAL')}
+                </span>
+              </div>
+              <p class="text-[11px] text-gray-400 mt-0.5">${tr.tier}</p>
+              <div class="mt-2 text-xs">
+                <span class="text-[9px] uppercase tracking-wider text-gray-400 block font-semibold">Auto-Charge Conversion</span>
+                <span class="text-sm font-black font-mono text-white">${formatMoney(tr.costAfter).display}<span class="text-[10px] text-gray-400 font-sans">/mo</span></span>
+              </div>
+            </div>
+
+            <!-- SVG Circular Countdown Timer Ring -->
+            <div class="relative w-16 h-16 flex-shrink-0 flex items-center justify-center">
+              <svg class="w-full h-full transform -rotate-90" viewBox="0 0 64 64">
+                <circle cx="32" cy="32" r="${radius}" fill="transparent" stroke="#0B0F17" stroke-width="5"/>
+                <circle cx="32" cy="32" r="${radius}" fill="transparent" stroke="${color}" stroke-width="5"
+                  stroke-dasharray="${circum}" stroke-dashoffset="${offset}" stroke-linecap="round" class="transition-all duration-700"/>
+              </svg>
+              <div class="absolute flex flex-col items-center">
+                <span class="text-xs font-black font-mono leading-none ${isUrgent ? 'text-urgentRed' : 'text-emeraldMain'}">${tr.daysLeft}d</span>
+                <span class="text-[7px] uppercase tracking-wider text-gray-400 font-bold">Left</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="pt-2 border-t border-borderDark/60 flex items-center justify-between text-xs">
+            <label class="flex items-center gap-1.5 cursor-pointer text-[11px] text-gray-300">
+              <input type="checkbox" ${tr.alert48h ? 'checked' : ''} onchange="toggleTrialAlert('${tr.id}', this.checked)" class="accent-emeraldMain rounded">
+              <span>48h Push Interceptor</span>
+            </label>
+
+            ${!isCancelled ? `
+              <button onclick="cancelTrial('${tr.id}')" class="px-2.5 py-1 rounded-xl bg-urgentRed/15 hover:bg-urgentRed text-urgentRed hover:text-white border border-urgentRed/30 text-[10px] font-bold transition-all">
+                Cancel Before Auto-Charge
+              </button>
+            ` : `
+              <span class="text-[10px] font-bold text-urgentRed">Charge Defeated ✓</span>
+            `}
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // ---------- 6. RENDER: ANALYTICS & DETAIL ----------
+    function renderAnalyticsDetail() {
+      const adobe = AppState.subscriptions.find(s => s.id === 'sub_03');
+      if (!adobe) return;
+      document.getElementById('detail-cost-text').textContent = formatMoney(adobe.cost).display;
+      document.getElementById('cost-per-hour-text').innerHTML = `${formatMoney(adobe.costPerHour || 13.75).display}<span class="text-xs text-gray-400 font-sans">/hr</span>`;
+      
+      const badge = document.getElementById('detail-status-badge');
+      if (adobe.status === 'Cancelled') {
+        badge.className = 'text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-urgentRed/20 border border-urgentRed/40 text-urgentRed';
+        badge.textContent = 'Revoked & Cancelled';
+      } else {
+        badge.className = 'text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-emeraldMain/15 border border-emeraldMain/30 text-emeraldMain';
+        badge.textContent = 'Active Subscription';
+      }
+    }
+
+    // ---------- 7. 3-STEP CANCELLATION STEPPER HANDLERS ----------
+    function advanceCancelStep(step) {
+      document.getElementById('cancel-step-1').classList.add('hidden');
+      document.getElementById('cancel-step-2').classList.add('hidden');
+      document.getElementById('cancel-step-3').classList.add('hidden');
+
+      document.getElementById(`cancel-step-${step}`).classList.remove('hidden');
+      document.getElementById('stepper-step-indicator').textContent = `Step ${step} of 3`;
+      
+      if (step === 3) {
+        const adobe = AppState.subscriptions.find(s => s.id === 'sub_03');
+        const annual = adobe.cost * 12;
+        document.getElementById('step3-saved-text').textContent = `${formatMoney(adobe.cost).display}/mo (${formatMoney(annual).display}/yr)`;
+      }
+    }
+
+    function finalizeCancellation(subId) {
+      const sub = AppState.subscriptions.find(s => s.id === subId);
+      if (sub) {
+        sub.status = 'Cancelled';
+        AppState.auditLogs.unshift({
+          id: 'log_' + Date.now(),
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          action: 'STATUTORY_REVOCATION',
+          service: sub.name,
+          amount: sub.cost
+        });
+      }
+      showView('view-dashboard');
+    }
+
+    function quickCancel(subId) {
+      const sub = AppState.subscriptions.find(s => s.id === subId);
+      if (sub) {
+        sub.status = 'Cancelled';
+        AppState.auditLogs.unshift({
+          id: 'log_' + Date.now(),
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          action: 'QUICK_CANCEL',
+          service: sub.name,
+          amount: sub.cost
+        });
+        renderAll();
+      }
+    }
+
+    function toggleTrialAlert(trialId, val) {
+      const tr = AppState.freeTrials.find(t => t.id === trialId);
+      if (tr) {
+        tr.alert48h = val;
+        AppState.auditLogs.unshift({
+          id: 'log_' + Date.now(),
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          action: val ? 'PUSH_ALERT_ON' : 'PUSH_ALERT_OFF',
+          service: tr.name,
+          amount: 0
+        });
+      }
+    }
+
+    function cancelTrial(trialId) {
+      const tr = AppState.freeTrials.find(t => t.id === trialId);
+      if (tr) {
+        tr.status = 'Cancelled';
+        AppState.auditLogs.unshift({
+          id: 'log_' + Date.now(),
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          action: 'TRIAL_DEFEATED',
+          service: tr.name,
+          amount: tr.costAfter
+        });
+        renderTrials();
+      }
+    }
+
+    function addNewTrialPrompt() {
+      const name = prompt("Enter Service Name (e.g., Paramount+):", "Paramount+");
+      if (!name) return;
+      AppState.freeTrials.push({
+        id: 'tr_' + Date.now(),
+        name: name,
+        tier: 'Standard Promotional Pass',
+        costAfter: 11.99,
+        daysLeft: 7,
+        alert48h: true,
+        status: 'Active'
+      });
+      renderTrials();
+    }
+
+    function promptBudgetChange() {
+      const current = AppState.budgetCap.toFixed(0);
+      const val = prompt(`Enter Monthly Budget Ceiling in ${AppState.currency}:`, current);
+      if (val && !isNaN(parseFloat(val))) {
+        AppState.budgetCap = parseFloat(val);
+        renderDashboard();
+      }
+    }
+
+    // ---------- 8. COPY TO CLIPBOARD ----------
+    function copyLegalScript() {
+      const text = document.getElementById('legal-script-text').innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        const lbl = document.getElementById('copy-btn-label');
+        lbl.textContent = '✓ Copied to Clipboard!';
+        setTimeout(() => { lbl.textContent = '1-Tap Copy Script'; }, 3000);
+      });
+    }
+
+    // ---------- 9. RELATIONAL SQL ENGINE & QUERY RUNNER ----------
+    function setSQL(query) {
+      document.getElementById('sql-input').value = query;
+      executeSQLQuery();
+    }
+
+    function executeSQLQuery() {
+      const raw = document.getElementById('sql-input').value.trim();
+      const q = raw.toLowerCase();
+      const table = document.getElementById('sql-result-table');
+      table.innerHTML = '';
+
+      let rows = [];
+      let headers = [];
+
+      if (q.includes('subscriptions')) {
+        headers = ['ID', 'Service', 'Category', 'Cost', 'Renew', 'Status'];
+        let data = AppState.subscriptions;
+        if (q.includes("status = 'active'")) data = data.filter(s => s.status === 'Active');
+        if (q.includes("status = 'cancelled'")) data = data.filter(s => s.status === 'Cancelled');
+        
+        rows = data.map(s => [
+          s.id, s.name, s.category, formatMoney(s.cost).display, `${s.renewDays}d`, s.status
+        ]);
+      } else if (q.includes('free_trials')) {
+        headers = ['ID', 'Service', 'Tier', 'After Trial', 'Days Left', 'Status'];
+        let data = AppState.freeTrials;
+        if (q.includes('daysleft <= 2')) data = data.filter(t => t.daysLeft <= 2);
+
+        rows = data.map(t => [
+          t.id, t.name, t.tier, formatMoney(t.costAfter).display, `${t.daysLeft}d`, t.status
+        ]);
+      } else if (q.includes('audit_logs')) {
+        headers = ['Timestamp', 'Action', 'Target Service', 'Savings Amount'];
+        rows = AppState.auditLogs.map(l => [
+          l.time, l.action, l.service, l.amount > 0 ? formatMoney(l.amount).display : '-'
+        ]);
+      } else {
+        table.innerHTML = `<tr><td class="p-3 text-urgentRed">Error: Table not recognized. Try 'subscriptions', 'free_trials', or 'audit_logs'.</td></tr>`;
+        document.getElementById('sql-rows-count').textContent = '0 rows returned';
+        return;
+      }
+
+      const thead = document.createElement('thead');
+      thead.className = 'bg-obsidian text-gray-400 text-[10px] uppercase';
+      const trH = document.createElement('tr');
+      headers.forEach(h => {
+        const th = document.createElement('th');
+        th.className = 'p-2';
+        th.textContent = h;
+        trH.appendChild(th);
+      });
+      thead.appendChild(trH);
+      table.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
+      tbody.className = 'divide-y divide-borderDark';
+      rows.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-obsidian/40';
+        r.forEach((col, idx) => {
+          const td = document.createElement('td');
+          td.className = 'p-2 text-white';
+          if (idx === r.length - 1 && (col === 'Active' || col === 'VAULT_SYNCED')) {
+            td.className = 'p-2 text-emeraldMain font-bold';
+          }
+          if (col === 'Cancelled' || col === 'URGENT') {
+            td.className = 'p-2 text-urgentRed font-bold';
+          }
+          td.textContent = col;
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+
+      document.getElementById('sql-rows-count').textContent = `${rows.length} rows returned`;
+    }
+
+    function exportJSONLedger() {
+      const blob = new Blob([JSON.stringify(AppState, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `SubscriptionGuard_Ledger_${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function resetMockState() {
+      if (confirm("Reset all subscriptions, trials, and audit logs to original demonstration state?")) {
+        AppState = JSON.parse(JSON.stringify(INITIAL_STATE));
+        renderAll();
+      }
+    }
+
+    // ---------- 10. APP-WIDE RE-RENDER PIPELINE ----------
+    function renderAll() {
+      renderDashboard();
+      renderTrials();
+      renderAnalyticsDetail();
+      executeSQLQuery();
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      renderAll();
+    });
+  </script>
+</body>
+</html>

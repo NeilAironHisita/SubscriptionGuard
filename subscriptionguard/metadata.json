@@ -1,0 +1,6 @@
+{
+  "name": "SubscriptionGuard",
+  "description": "Mobile & responsive financial defense application and relational database for monitoring subscriptions, tracking free trial expirations, and bypassing dark pattern cancellation retention loops.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
