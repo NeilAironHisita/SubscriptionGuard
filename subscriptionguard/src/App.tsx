@@ -5,6 +5,7 @@ import { AddFreeTrialModal, NewFreeTrialPayload } from './components/AddFreeTria
 import { EditBudgetModal } from './components/EditBudgetModal';
 import { ConfirmModal } from './components/ConfirmModal';
 import { ImportLedgerModal } from './components/ImportLedgerModal';
+import { OnboardingModal, SetupPreferencesPayload } from './components/OnboardingModal';
 
 // ==================== TYPES & CONSTANTS ====================
 export type Currency = 'PHP' | 'USD';
@@ -172,6 +173,8 @@ export default function App() {
       subscriptions: DEFAULT_SUBSCRIPTIONS,
       freeTrials: DEFAULT_FREE_TRIALS,
       auditLogs: DEFAULT_AUDIT_LOGS,
+      alertLeadDays: 3 as 1 | 3 | 7,
+      onboardingCompleted: false,
     };
   };
 
@@ -184,6 +187,9 @@ export default function App() {
   const [subscriptions, setSubscriptions] = useState<SubscriptionItem[]>(initial.subscriptions);
   const [freeTrials, setFreeTrials] = useState<FreeTrialItem[]>(initial.freeTrials);
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>(initial.auditLogs);
+  const [alertLeadDays, setAlertLeadDays] = useState<1 | 3 | 7>(initial.alertLeadDays || 3);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(!initial.onboardingCompleted);
+  const [isFirstLaunch, setIsFirstLaunch] = useState<boolean>(!initial.onboardingCompleted);
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
 
   // Inspected Subscription State
@@ -237,12 +243,14 @@ export default function App() {
         subscriptions,
         freeTrials,
         auditLogs,
+        alertLeadDays,
+        onboardingCompleted: true,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
     } catch {
       // storage quota or sandboxed
     }
-  }, [currency, burnCycle, budgetCap, subscriptions, freeTrials, auditLogs]);
+  }, [currency, burnCycle, budgetCap, subscriptions, freeTrials, auditLogs, alertLeadDays]);
 
   // Toast Helper
   const addToast = useCallback((type: ToastData['type'], title: string, message?: string) => {
@@ -299,8 +307,8 @@ export default function App() {
   const budgetRatio = Math.min(100, (totalMonthlySpend / (budgetCap || 1)) * 100);
 
   const urgentRenewals = useMemo(() => {
-    return activeSubs.filter((s) => s.renewDays <= 3);
-  }, [activeSubs]);
+    return activeSubs.filter((s) => s.renewDays <= alertLeadDays);
+  }, [activeSubs, alertLeadDays]);
 
   const currentlyInspectedSub = useMemo(() => {
     return subscriptions.find((s) => s.id === inspectedSubId) || subscriptions[0];
@@ -745,6 +753,29 @@ Please process this permanent cancellation immediately and provide written confi
     }
   };
 
+  // Setup / Preferences Saved
+  const handleSavePreferences = (payload: SetupPreferencesPayload) => {
+    setAlertLeadDays(payload.alertLeadDays);
+    setCurrency(payload.currency);
+    setBudgetCap(payload.budgetCap);
+
+    const newLog: AuditLogItem = {
+      id: `log_${Date.now()}`,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      date: new Date().toLocaleDateString(),
+      action: 'CONFIGURED_PREFERENCES',
+      service: payload.trackingMode === 'open_banking' ? (payload.linkedBankName || 'Open Banking Live Feed') : 'Manual Private Vault',
+      amount: 0,
+      details: `Configured ${payload.alertLeadDays}-day pre-billing alert timing under zero-credential read-only protocol.`,
+    };
+    setAuditLogs((prev) => [newLog, ...prev]);
+    addToast(
+      'success',
+      'Preferences Saved',
+      `Armed ${payload.alertLeadDays}-day pre-billing alerts under zero-credential security.`
+    );
+  };
+
   // Reset State to Default Demonstration
   const handleResetToDefault = () => {
     setConfirmModalConfig({
@@ -761,6 +792,7 @@ Please process this permanent cancellation immediately and provide written confi
         setCurrency('PHP');
         setBurnCycle('monthly');
         setCancelStep(1);
+        setAlertLeadDays(3);
         localStorage.removeItem(STORAGE_KEY);
         addToast('info', 'Database Reset', 'Demo seed state successfully re-established.');
       },
@@ -795,8 +827,24 @@ Please process this permanent cancellation immediately and provide written confi
             </div>
           </div>
 
-          {/* Controls: Currency Toggle & Add Button */}
-          <div className="flex items-center gap-2">
+          {/* Controls: Setup Preferences, Currency Toggle & Add Button */}
+          <div className="flex items-center gap-1.5">
+            {/* Setup / Alert Timing Preferences Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsFirstLaunch(false);
+                setIsOnboardingOpen(true);
+              }}
+              className="h-8 px-2 rounded-xl bg-[#1E2640] hover:bg-[#2D3748] border border-[#2D3748] hover:border-[#10B981]/50 text-[#DFE2EE] hover:text-[#10B981] flex items-center gap-1 text-xs font-bold transition-all shadow active:scale-95 cursor-pointer"
+              title="Configure Alert Timing (1, 3, or 7 days) & Security Model"
+            >
+              <svg className="w-3.5 h-3.5 text-[#10B981]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
+              <span className="font-mono text-[11px]">{alertLeadDays}d</span>
+            </button>
+
             {/* Currency Toggle */}
             <div className="flex bg-[#1E2640] p-0.5 rounded-xl border border-[#2D3748] text-xs font-mono font-bold">
               <button
@@ -872,6 +920,39 @@ Please process this permanent cancellation immediately and provide written confi
                 className="text-[11px] font-bold text-gray-300 hover:text-white border border-[#2D3748] hover:border-[#10B981] bg-[#0B0F17]/50 px-2.5 py-1 rounded-xl transition-all"
               >
                 Budget
+              </button>
+            </div>
+
+            {/* Defense Protocol & Alert Timing Security Card */}
+            <div className="flex items-center justify-between bg-[#10B981]/10 border border-[#10B981]/30 rounded-2xl p-3 shadow-md">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-[#10B981]/20 flex items-center justify-center text-[#10B981] flex-shrink-0">
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    <polyline points="9 12 11 14 15 10" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5 font-bold text-white text-xs">
+                    <span>{alertLeadDays}-Day Pre-Billing Alert Armed</span>
+                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#10B981]/20 text-[#10B981] font-mono uppercase">
+                      Zero-Credential
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-400 leading-tight mt-0.5">
+                    Read-only tracking • Warns {alertLeadDays} {alertLeadDays === 1 ? 'day' : 'days'} prior to auto-debit
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsFirstLaunch(false);
+                  setIsOnboardingOpen(true);
+                }}
+                className="px-2.5 py-1 bg-[#10B981] hover:bg-[#34D399] text-black font-extrabold rounded-xl text-xs transition-all active:scale-95 cursor-pointer shadow ml-2 flex-shrink-0"
+              >
+                Configure
               </button>
             </div>
 
@@ -955,7 +1036,7 @@ Please process this permanent cancellation immediately and provide written confi
               </div>
             </div>
 
-            {/* 72-Hour Urgency Alert Banner */}
+            {/* Configurable Urgency Alert Banner */}
             {urgentRenewals.length > 0 ? (
               <div className="bg-[#EF4444] text-white rounded-2xl p-4 shadow-xl border border-[#EF4444]/60 flex items-center justify-between transition-all animate-in fade-in">
                 <div className="flex items-center gap-3">
@@ -966,13 +1047,15 @@ Please process this permanent cancellation immediately and provide written confi
                   </div>
                   <div>
                     <div className="flex items-center gap-1.5">
-                      <span className="font-extrabold text-xs tracking-tight">Auto-Charge Within 48 Hours</span>
+                      <span className="font-extrabold text-xs tracking-tight">
+                        Auto-Charge Within {alertLeadDays * 24}h ({alertLeadDays} {alertLeadDays === 1 ? 'Day' : 'Days'})
+                      </span>
                       <span className="text-[9px] uppercase font-mono font-bold bg-white/20 px-1.5 py-0.5 rounded">
                         Urgent
                       </span>
                     </div>
                     <p className="text-[11px] text-white/90 mt-0.5 leading-snug">
-                      {urgentRenewals[0].name} (<span className="font-mono">{formatMoney(urgentRenewals[0].cost).display}</span>) auto-charges in {urgentRenewals[0].renewDays} days. Review before card debit.
+                      {urgentRenewals[0].name} (<span className="font-mono">{formatMoney(urgentRenewals[0].cost).display}</span>) auto-charges in {urgentRenewals[0].renewDays} {urgentRenewals[0].renewDays === 1 ? 'day' : 'days'}. Review before card debit.
                     </p>
                   </div>
                 </div>
@@ -994,7 +1077,7 @@ Please process this permanent cancellation immediately and provide written confi
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                 </div>
-                <span>All Clear • No subscriptions renewing within the next 72 hours.</span>
+                <span>All Clear • No subscriptions renewing within your configured {alertLeadDays}-day warning window.</span>
               </div>
             )}
 
@@ -2096,6 +2179,20 @@ Please process this permanent cancellation immediately and provide written confi
         message={confirmModalConfig.message}
         confirmText={confirmModalConfig.confirmText}
         isDestructive={confirmModalConfig.isDestructive}
+      />
+
+      {/* 6. Onboarding & Alert Timing Setup Modal */}
+      <OnboardingModal
+        isOpen={isOnboardingOpen}
+        onClose={() => {
+          setIsOnboardingOpen(false);
+          setIsFirstLaunch(false);
+        }}
+        currentAlertDays={alertLeadDays}
+        currentCurrency={currency}
+        currentBudget={budgetCap}
+        onSavePreferences={handleSavePreferences}
+        isFirstLaunch={isFirstLaunch}
       />
     </div>
   );
