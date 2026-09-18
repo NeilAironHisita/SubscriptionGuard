@@ -12,6 +12,7 @@ export interface UserProfile {
   bank_connected: boolean;
   onboarding_completed: boolean;
   budget_limit: number;
+  alert_lead_days?: 1 | 3 | 7;
 }
 
 export type SubscriptionCategory = 'Entertainment' | 'Utilities' | 'Productivity' | 'Health' | 'Creative' | 'Security';
